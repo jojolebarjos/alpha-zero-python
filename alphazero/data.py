@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Self, TypeAlias
+from typing import Any, TypeAlias
 
 import numpy as np
 
@@ -28,9 +28,9 @@ class Turn:
             del data["state"]
             policy.append([data, probability])
         return {
-            "state": self.state.to_json(), # TODO delete config key?
+            "state": self.state.to_json(),  # TODO delete config key?
             "policy": policy,
             "value": self.value.tolist(),
         }
-    
+
     # TODO from_json, which needs to know State and Action classes

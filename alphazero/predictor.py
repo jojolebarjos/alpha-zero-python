@@ -36,7 +36,7 @@ class BufferedPredictor(Predictor):
         self.batched_predictor = batched_predictor
         self._states: list[State] | None = None
         self._task: asyncio.Task[list[Prediction]] | None = None
-    
+
     async def predict(self, state: State) -> Prediction:
         if self._task is None:
             index = 0

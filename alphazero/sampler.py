@@ -1,6 +1,3 @@
-import asyncio
-from typing import Callable
-
 import numpy as np
 
 from .data import Action, State, Turn
@@ -21,7 +18,7 @@ def sample_action(policy: dict[Action, float], temperature: float) -> Action:
 
 async def sample_episode(initial_state: State, predictor: Predictor, temperature: float) -> list[Turn]:
     """..."""
-    
+
     # Play complete game
     state = initial_state
     turns = []
@@ -31,16 +28,10 @@ async def sample_episode(initial_state: State, predictor: Predictor, temperature
         turns.append(turn)
         action = sample_action(prediction.policy, temperature)
         state = action.sample_next_state()
-    
+
     # Backpropagate true reward
     value = state.reward
     for turn in turns:
         turn.value = value
 
     return turns
-
-
-async def sample_episodes(initial_state_fn: Callable[[], State], predictor: Predictor, temperature: float, count: int) -> list[list[Turn]]:
-    """..."""
-
-    return await asyncio.gather(*[sample_episode(initial_state_fn(), predictor, temperature) for _ in range(count)])

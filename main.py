@@ -1,68 +1,24 @@
 import asyncio
 from copy import deepcopy
 from concurrent.futures import ThreadPoolExecutor
-import json
 import os
-import random
 
 import torch
-from torch.utils.data import DataLoader
 
 import lightning as L
 from lightning.pytorch.callbacks import Callback, ModelCheckpoint
 
 from simulator.game.connect import Config, State
 
-from alphazero.data import Prediction, Turn
+from alphazero.data import Prediction
+from alphazero.buffer import Buffer
 from alphazero.predictor import RandomPredictor, BufferedPredictor, BatchedPredictor
 from alphazero.sampler import sample_episode
 from alphazero.search import SearchPredictor
-from alphazero.model.connect import Model, ModelBatchedPredictor, TurnDataset, LitModel
+from alphazero.model.connect import Model, ModelBatchedPredictor, LitModel
 
 
 executor = ThreadPoolExecutor()
-
-
-class Writer:
-    """..."""
-
-    def __init__(self, path: str, executor: ThreadPoolExecutor) -> None:
-        self.path = path
-        self.executor = executor
-        self.lock = asyncio.Lock()
-        self.file = open(path, "w")
-    
-    async def add_episode(self, episode: list[Turn]) -> None:
-        line = json.dumps([turn.to_dict() for turn in episode]) + "\n"
-        loop = asyncio.get_running_loop()
-        async with self.lock:
-            await loop.run_in_executor(self.executor, self.file.write, line)
-
-
-class Buffer(L.LightningDataModule):
-    """..."""
-
-    def __init__(self, batch_size: int, max_turns: int) -> None:
-        super().__init__()
-        self.batch_size = batch_size
-        self.max_turns = max_turns
-        self.turns = []
-        self.num_episodes = 0
-
-    def add_episode(self, episode: list[Turn]) -> None:
-        turns = [*self.turns, *episode]
-        if len(turns) > self.max_turns:
-            random.shuffle(turns)
-            turns = turns[:self.max_turns]
-        self.turns = turns
-        self.num_episodes += 1
-    
-    def train_dataloader(self) -> DataLoader:
-        turns = list(self.turns)
-        print(f"New data loader with {len(turns)} turns ({self.num_episodes} episodes so far)")
-        assert len(turns) > 0
-        dataset = TurnDataset(turns)
-        return DataLoader(dataset, batch_size=self.batch_size, shuffle=True, pin_memory=True,)
 
 
 class Bridge(Callback, BatchedPredictor):
@@ -72,7 +28,7 @@ class Bridge(Callback, BatchedPredictor):
         self.batched_predictor = None
         self.executor = executor
         self.device = device
-    
+
     def set_model(self, model: Model) -> None:
         model = deepcopy(model).eval().to(self.device)
         self.batched_predictor = ModelBatchedPredictor(model, self.executor, self.device)
@@ -85,7 +41,6 @@ class Bridge(Callback, BatchedPredictor):
 
 
 async def main():
-
     loop = asyncio.get_running_loop()
 
     config = Config(6, 7, 4)
@@ -97,13 +52,11 @@ async def main():
 
     lightning_model = LitModel()
 
-    buffer = Buffer(batch_size=64, max_turns=64 * 500)
-
     bridge = Bridge(executor, device)
     bridge.set_model(lightning_model.model)
 
     predictor = BufferedPredictor(bridge)
-    predictor = SearchPredictor(predictor, num_steps=1000, c_puct=1.0)
+    predictor = SearchPredictor(predictor, num_steps=100, c_puct=1.0)
 
     trainer = L.Trainer(
         accelerator="auto",
@@ -119,16 +72,20 @@ async def main():
         ],
     )
 
-    writer = Writer(os.path.join(trainer.default_root_dir, "episode.jl"), executor)
+    buffer = Buffer(
+        batch_size=64,
+        max_turns=64 * 500,
+        path=os.path.join(trainer.default_root_dir, "episode.jl"),
+        executor=executor,
+    )
 
     async def single_loop():
         while True:
             initial_state = config.sample_initial_state()
             episode = await sample_episode(initial_state, predictor, temperature=1.0)
-            buffer.add_episode(episode)
-            await writer.add_episode(episode)
+            await buffer.add_episode(episode)
         # TODO should print on error, as `gather` seems to postpone the failure
-    
+
     async def many_loops():
         await asyncio.gather(*[single_loop() for _ in range(64)])
 
@@ -142,7 +99,7 @@ async def main():
         await loop.run_in_executor(executor, lambda: trainer.fit(lightning_model, datamodule=buffer))
     finally:
         trainer.should_stop = True
-    
+
 
 async def foo():
     config = Config(6, 7, 4)

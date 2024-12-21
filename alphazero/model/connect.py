@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from torch import nn, optim
 import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 
 import lightning as L
 
@@ -39,7 +39,7 @@ def states_to_tensor(states: list[State]) -> torch.Tensor:
         # Channel 2: playable locations
         data[i, 2, 0] = grid[0] < 0
         data[i, 2, 1:] = (grid[1:] < 0) & (grid[:-1] >= 0)
-    
+
     return torch.tensor(data)
 
 
@@ -48,10 +48,10 @@ class TurnDataset(Dataset):
 
     def __init__(self, turns: list[Turn]) -> None:
         self.turns = turns
-    
+
     def __len__(self):
         return len(self.turns)
-    
+
     def __getitem__(self, index):
         turn = self.turns[index]
         state = turn.state
@@ -65,7 +65,7 @@ class TurnDataset(Dataset):
         return x, policy, value
 
 
-#@torch.compile
+# @torch.compile
 class Model(nn.Module):
     """..."""
 
@@ -107,11 +107,11 @@ class LitModel(L.LightningModule):
     def __init__(self):
         super().__init__()
         self.model = Model()
-    
+
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=1e-3)
         return optimizer
-    
+
     def training_step(self, batch, batch_idx):
         x, target_policy, target_value = batch
         policy_logits, value_logits = self.model(x)
@@ -122,7 +122,7 @@ class LitModel(L.LightningModule):
         self.log("train_policy_loss", policy_loss)
         self.log("train_value_loss", value_loss)
         return loss
-    
+
     # TODO add validation?
 
 
@@ -133,11 +133,11 @@ class ModelBatchedPredictor(BatchedPredictor):
         self.model = model
         self.executor = executor
         self.device = device
-    
+
     async def predict_many(self, states: list[State]) -> list[Prediction]:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(self.executor, self._predict_many, states)
-    
+
     def _predict_many(self, states: list[State]) -> list[Prediction]:
         # TODO should probably limit batch size? implement as wrapper?
 
@@ -148,7 +148,7 @@ class ModelBatchedPredictor(BatchedPredictor):
             policy_logits, value_logits = self.model(x)
             policy_logits = policy_logits.cpu().numpy()
             value_logits = value_logits.cpu().numpy()
-        
+
         # Repack output as prediction objects
         values = np.tanh(value_logits)
         predictions = []
