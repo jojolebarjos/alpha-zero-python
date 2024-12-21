@@ -21,13 +21,14 @@ config = Config(6, 7, 4)
 state = config.sample_initial_state()
 
 # predictor = RandomPredictor()
-# predictor = SearchPredictor(predictor, num_steps=1000, c_puct=1.0)
 
 device = torch.device("cpu")
 path = "./lightning_logs/version_0/checkpoints/epoch=30.ckpt"
 lightning_model = LitModel.load_from_checkpoint(path).to(device)
 batched_predictor = ModelBatchedPredictor(lightning_model.model, executor, device)
 predictor = BufferedPredictor(batched_predictor)
+
+# predictor = SearchPredictor(predictor, num_steps=1000, c_puct=1.0)
 
 
 class AgentApp(App):

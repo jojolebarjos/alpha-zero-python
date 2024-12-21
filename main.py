@@ -1,6 +1,8 @@
 import asyncio
 from copy import deepcopy
 from concurrent.futures import ThreadPoolExecutor
+import json
+import os
 import random
 
 import torch
@@ -19,6 +21,22 @@ from alphazero.model.connect import Model, ModelBatchedPredictor, TurnDataset, L
 
 
 executor = ThreadPoolExecutor()
+
+
+class Writer:
+    """..."""
+
+    def __init__(self, path: str, executor: ThreadPoolExecutor) -> None:
+        self.path = path
+        self.executor = executor
+        self.lock = asyncio.Lock()
+        self.file = open(path, "w")
+    
+    async def add_episode(self, episode: list[Turn]) -> None:
+        line = json.dumps([turn.to_dict() for turn in episode]) + "\n"
+        loop = asyncio.get_running_loop()
+        async with self.lock:
+            await loop.run_in_executor(self.executor, self.file.write, line)
 
 
 class Buffer(L.LightningDataModule):
@@ -79,18 +97,19 @@ async def main():
 
     lightning_model = LitModel()
 
-    buffer = Buffer(batch_size=64, max_turns=6400)
+    buffer = Buffer(batch_size=64, max_turns=64 * 500)
 
     bridge = Bridge(executor, device)
     bridge.set_model(lightning_model.model)
 
     predictor = BufferedPredictor(bridge)
-    predictor = SearchPredictor(predictor, num_steps=100, c_puct=1.0)
+    predictor = SearchPredictor(predictor, num_steps=1000, c_puct=1.0)
 
     trainer = L.Trainer(
         accelerator="auto",
         max_epochs=-1,
         reload_dataloaders_every_n_epochs=1,
+        log_every_n_steps=20,
         callbacks=[
             ModelCheckpoint(
                 filename="{epoch}",
@@ -100,12 +119,15 @@ async def main():
         ],
     )
 
+    writer = Writer(os.path.join(trainer.default_root_dir, "episode.jl"), executor)
+
     async def single_loop():
         while True:
             initial_state = config.sample_initial_state()
             episode = await sample_episode(initial_state, predictor, temperature=1.0)
-            # TODO save episode to disk
             buffer.add_episode(episode)
+            await writer.add_episode(episode)
+        # TODO should print on error, as `gather` seems to postpone the failure
     
     async def many_loops():
         await asyncio.gather(*[single_loop() for _ in range(64)])
@@ -116,7 +138,10 @@ async def main():
     while buffer.num_episodes < 32:
         await asyncio.sleep(1.0)
 
-    await loop.run_in_executor(executor, lambda: trainer.fit(lightning_model, datamodule=buffer))
+    try:
+        await loop.run_in_executor(executor, lambda: trainer.fit(lightning_model, datamodule=buffer))
+    finally:
+        trainer.should_stop = True
     
 
 async def foo():
@@ -127,9 +152,6 @@ async def foo():
     for _ in range(10):
         _ = await sample_episode(state, predictor, temperature=1.0)
 
-
-# pip install pyinstrument
-# python -m pyinstrument -o out main.py
 
 with executor:
     asyncio.run(main())

@@ -55,12 +55,13 @@ class TurnDataset(Dataset):
     def __getitem__(self, index):
         turn = self.turns[index]
         state = turn.state
+        assert not state.has_ended
         config = state.config
         x = states_to_tensor([state])[0]
         policy = torch.zeros(config.width, dtype=torch.float32)
         for action, probability in turn.policy.items():
             policy[action.column] = probability
-        value = torch.tensor(turn.value[0], dtype=torch.float32)
+        value = torch.tensor(turn.value[state.player], dtype=torch.float32)
         return x, policy, value
 
 
@@ -158,6 +159,8 @@ class ModelBatchedPredictor(BatchedPredictor):
             probabilities = weights / weights.sum()
             policy = dict(zip(actions, probabilities))
             value = np.array([values[i], -values[i]])
+            if state.player == 1:
+                value = -value
             prediction = Prediction(policy, value)
             predictions.append(prediction)
         return predictions
