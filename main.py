@@ -3,6 +3,7 @@ from copy import deepcopy
 from concurrent.futures import ThreadPoolExecutor
 import os
 import shutil
+import time
 
 import torch
 
@@ -13,7 +14,7 @@ from simulator.game.connect import Config, State  # pyright: ignore[reportMissin
 
 from alphazero.data import Prediction
 from alphazero.buffer import Buffer
-from alphazero.predictor import RandomPredictor, BufferedPredictor, BatchedPredictor
+from alphazero.predictor import BufferedPredictor, BatchedPredictor
 from alphazero.sampler import sample_episode
 from alphazero.search import SearchPredictor
 from alphazero.model.connect import Model, ModelBatchedPredictor, LitModel
@@ -59,7 +60,7 @@ async def main():
     bridge.set_model(lightning_model.model)
 
     predictor = BufferedPredictor(bridge)
-    predictor = SearchPredictor(predictor, num_steps=100, c_puct=1.0)
+    predictor = SearchPredictor(predictor, num_steps=1000, c_puct=1.0)
 
     # TODO choose sub-folder?
     trainer = L.Trainer(
@@ -105,6 +106,9 @@ async def main():
     if os.path.exists(checkpoint_path):
         last_checkpoint_path = checkpoint_path
 
+    start_time = time.perf_counter()
+    start_num_episodes = buffer.num_episodes
+
     try:
 
         def train():
@@ -120,6 +124,12 @@ async def main():
         pass
     finally:
         trainer.should_stop = True
+
+    end_time = time.perf_counter()
+    end_num_episodes = buffer.num_episodes
+
+    print(f"Training time: {end_time - start_time:0.02} seconds")
+    print(f"Episodes generated (ignoring warmup): {end_num_episodes - start_num_episodes}")
 
     # To avoid trainer corruption, using end-of-epoch batch
     best_checkpoint_path = trainer.checkpoint_callback.best_model_path
