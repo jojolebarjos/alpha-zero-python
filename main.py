@@ -2,13 +2,14 @@ import asyncio
 from copy import deepcopy
 from concurrent.futures import ThreadPoolExecutor
 import os
+import shutil
 
 import torch
 
 import lightning as L
 from lightning.pytorch.callbacks import Callback, ModelCheckpoint
 
-from simulator.game.connect import Config, State
+from simulator.game.connect import Config, State  # pyright: ignore[reportMissingModuleSource]
 
 from alphazero.data import Prediction
 from alphazero.buffer import Buffer
@@ -43,14 +44,16 @@ class Bridge(Callback, BatchedPredictor):
 async def main():
     loop = asyncio.get_running_loop()
 
-    config = Config(6, 7, 4)
-
-    if torch.backends.mps.is_available():
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif torch.backends.mps.is_available():
         device = torch.device("mps")
     else:
         device = torch.device("cpu")
 
-    lightning_model = LitModel()
+    config = Config(6, 7, 4)
+
+    lightning_model = LitModel(config)
 
     bridge = Bridge(executor, device)
     bridge.set_model(lightning_model.model)
@@ -58,6 +61,7 @@ async def main():
     predictor = BufferedPredictor(bridge)
     predictor = SearchPredictor(predictor, num_steps=100, c_puct=1.0)
 
+    # TODO choose sub-folder?
     trainer = L.Trainer(
         accelerator="auto",
         max_epochs=-1,
@@ -95,19 +99,32 @@ async def main():
     while buffer.num_episodes < 32:
         await asyncio.sleep(1.0)
 
+    checkpoint_path = os.path.join(trainer.default_root_dir, "current.ckpt")
+
+    last_checkpoint_path = None
+    if os.path.exists(checkpoint_path):
+        last_checkpoint_path = checkpoint_path
+
     try:
-        await loop.run_in_executor(executor, lambda: trainer.fit(lightning_model, datamodule=buffer))
+
+        def train():
+            trainer.fit(
+                lightning_model,
+                datamodule=buffer,
+                ckpt_path=last_checkpoint_path,
+            )
+
+        await loop.run_in_executor(executor, train)
+
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        pass
     finally:
         trainer.should_stop = True
 
-
-async def foo():
-    config = Config(6, 7, 4)
-    state = config.sample_initial_state()
-    predictor = RandomPredictor()
-    predictor = SearchPredictor(predictor, num_steps=1000, c_puct=1.0)
-    for _ in range(10):
-        _ = await sample_episode(state, predictor, temperature=1.0)
+    # To avoid trainer corruption, using end-of-epoch batch
+    best_checkpoint_path = trainer.checkpoint_callback.best_model_path
+    if best_checkpoint_path:
+        shutil.copyfile(best_checkpoint_path, checkpoint_path)
 
 
 with executor:

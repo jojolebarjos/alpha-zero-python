@@ -10,7 +10,7 @@ from torch.utils.data import Dataset
 
 import lightning as L
 
-from simulator.game.connect import State
+from simulator.game.connect import Config, State  # pyright: ignore[reportMissingModuleSource]
 
 from ..data import Prediction, Turn
 from ..predictor import BatchedPredictor
@@ -65,48 +65,57 @@ class TurnDataset(Dataset):
         return x, policy, value
 
 
-# @torch.compile
 class Model(nn.Module):
     """..."""
 
-    def __init__(self) -> None:
+    def __init__(self, width: int) -> None:
         super().__init__()
-        self.conv1 = nn.Conv2d(DEPTH, 16, kernel_size=3, padding="same")
-        self.conv2 = nn.Conv2d(16, 32, kernel_size=3, padding="same")
-        self.conv3 = nn.Conv2d(32, 64, kernel_size=3, padding="same")
+        self.conv1 = nn.Conv2d(DEPTH, 32, kernel_size=3, padding="same")
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding="same")
+        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, padding="same")
+        self.full1 = nn.Linear(128 * width, 256)
         self.dropout = nn.Dropout1d(0.5)
-        self.policy_head = nn.Conv1d(64, 1, kernel_size=1)
-        self.value_head = nn.Linear(64, 1)
+        self.policy_head = nn.Linear(256, width)
+        self.value_head = nn.Linear(256, 1)
 
     def forward(self, x):
         _, _, height, width = x.shape
 
         # Stacked convolutions, to capture local neighborhood
-        x = torch.relu(self.conv1(x))
-        x = torch.relu(self.conv2(x))
-        x = torch.relu(self.conv3(x))
+        h = x
+        h = F.leaky_relu(self.conv1(h))
+        h = F.leaky_relu(self.conv2(h))
+        h = F.leaky_relu(self.conv3(h))
 
         # Project vertically, to get an embedding per column
-        x = F.max_pool2d(x, (height, 1))
-        x = x.squeeze(2)
-        x = self.dropout(x)
+        h = torch.max(h, 2).values
+
+        # Aggregate column with trainable projection
+        h = torch.flatten(h, start_dim=1)
+        h = F.leaky_relu(self.full1(h))
+        h = self.dropout(h)
 
         # Apply policy head on each column
-        policy_logits = self.policy_head(x).squeeze(1)
+        policy_logits = self.policy_head(h)
 
         # Aggregate column embeddings, and apply value head for board-wide value
-        x = F.max_pool1d(x, width).squeeze(2)
-        value_logits = self.value_head(x).squeeze(1)
+        value_logits = self.value_head(h).squeeze(1)
 
         return policy_logits, value_logits
+
+
+# TODO move this step to somewhere meaningful and shared
+if torch.cuda.is_available():
+    Model = torch.compile(Model)
 
 
 class LitModel(L.LightningModule):
     """..."""
 
-    def __init__(self):
+    def __init__(self, config: Config):
         super().__init__()
-        self.model = Model()
+        self.config = config
+        self.model = Model(config.width)
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=1e-3)
@@ -140,9 +149,11 @@ class ModelBatchedPredictor(BatchedPredictor):
 
     def _predict_many(self, states: list[State]) -> list[Prediction]:
         # TODO should probably limit batch size? implement as wrapper?
+        # TODO should probably prevent too many batches to run in parallel? implement as wrapper?
 
         # Apply neural network
         with torch.no_grad():
+            # TODO might consider non-blocking transfer and memory pinning?
             x = states_to_tensor(states)
             x = x.to(self.device)
             policy_logits, value_logits = self.model(x)

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, TypeAlias
+from typing import Any, Self, TypeAlias
 
 import numpy as np
 
@@ -33,4 +33,14 @@ class Turn:
             "value": self.value.tolist(),
         }
 
-    # TODO from_json, which needs to know State and Action classes
+    @classmethod
+    def from_dict(cls, data, state_cls, action_cls) -> Self:
+        state = state_cls.from_json(data["state"])
+        policy = {}
+        for action_data, probability in data["policy"]:
+            action_data = {"state": data["state"], **action_data}
+            # TODO `from_json` should probably reuse an existing state!
+            action = action_cls.from_json(action_data)
+            policy[action] = probability
+        value = np.array(data["value"])
+        return cls(state, policy, value)

@@ -6,7 +6,7 @@ from textual.widgets import Pretty
 
 import torch
 
-from simulator.game.connect import Config, State, Action
+from simulator.game.connect import Config, State  # pyright: ignore[reportMissingModuleSource]
 from simulator.textual.connect import ConnectBoard
 
 from alphazero.model.connect import LitModel, ModelBatchedPredictor
@@ -23,8 +23,8 @@ state = config.sample_initial_state()
 # predictor = RandomPredictor()
 
 device = torch.device("cpu")
-path = "./lightning_logs/version_0/checkpoints/epoch=30.ckpt"
-lightning_model = LitModel.load_from_checkpoint(path).to(device)
+path = "./lightning_logs/version_8/checkpoints/epoch=17.ckpt"
+lightning_model = LitModel.load_from_checkpoint(path, config=config).to(device)
 batched_predictor = ModelBatchedPredictor(lightning_model.model, executor, device)
 predictor = BufferedPredictor(batched_predictor)
 

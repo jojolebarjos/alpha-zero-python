@@ -7,6 +7,9 @@ from torch.utils.data import DataLoader
 
 import lightning as L
 
+# TODO this class should be game independent
+from simulator.game.connect import Action, State  # pyright: ignore[reportMissingModuleSource]
+
 from alphazero.data import Turn
 from alphazero.model.connect import TurnDataset
 
@@ -26,14 +29,16 @@ class Buffer(L.LightningDataModule):
 
         with open(path, "r") as file:
             for line in file:
-                episode = json.loads(line)
+                episode_data = json.loads(line)
+                episode = [Turn.from_dict(turn_data, State, Action) for turn_data in episode_data]
                 self._collect_turns(episode)
 
         self.lock = asyncio.Lock()
         self.file = open(path, "a")
 
     async def _write_episode(self, episode: list[Turn]) -> None:
-        line = json.dumps([turn.to_dict() for turn in episode]) + "\n"
+        episode_data = [turn.to_dict() for turn in episode]
+        line = json.dumps(episode_data) + "\n"
         loop = asyncio.get_running_loop()
         async with self.lock:
             await loop.run_in_executor(self.executor, self.file.write, line)
