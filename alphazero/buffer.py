@@ -1,6 +1,7 @@
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import json
+import os
 import random
 
 from torch.utils.data import DataLoader
@@ -27,17 +28,20 @@ class Buffer(L.LightningDataModule):
         self.turns = []
         self.num_episodes = 0
 
-        with open(path, "r") as file:
-            for line in file:
-                episode_data = json.loads(line)
-                episode = [Turn.from_dict(turn_data, State, Action) for turn_data in episode_data]
-                self._collect_turns(episode)
+        if os.path.exists(path):
+            with open(path, "r") as file:
+                for line in file:
+                    episode_data = json.loads(line)
+                    episode = [Turn.from_dict(turn_data, State, Action) for turn_data in episode_data["turns"]]
+                    self._collect_turns(episode)
 
-        self.lock = asyncio.Lock()
         self.file = open(path, "a")
+        self.lock = asyncio.Lock()
 
-    async def _write_episode(self, episode: list[Turn]) -> None:
-        episode_data = [turn.to_dict() for turn in episode]
+    async def _write_episode(self, episode: list[Turn], metadata=None) -> None:
+        # TODO should probably have some information about the model (e.g. which epoch) that generated this?
+        episode_data = dict(metadata) if metadata else {}
+        episode_data["turns"] = [turn.to_dict() for turn in episode]
         line = json.dumps(episode_data) + "\n"
         loop = asyncio.get_running_loop()
         async with self.lock:
@@ -51,9 +55,9 @@ class Buffer(L.LightningDataModule):
         self.turns = turns
         self.num_episodes += 1
 
-    async def add_episode(self, episode: list[Turn]) -> None:
+    async def add_episode(self, episode: list[Turn], metadata=None) -> None:
         self._collect_turns(episode)
-        await self._write_episode(episode)
+        await self._write_episode(episode, metadata)
 
     def train_dataloader(self) -> DataLoader:
         turns = list(self.turns)
