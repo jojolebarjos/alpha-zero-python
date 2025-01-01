@@ -1,6 +1,7 @@
 import asyncio
 from copy import deepcopy
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 import os
 import shutil
 import time
@@ -26,6 +27,10 @@ from alphazero.model.connect import Model, ModelBatchedPredictor, LitModel
 executor = ThreadPoolExecutor()
 
 
+def now():
+    return datetime.now(timezone.utc)
+
+
 class Bridge(Callback, BatchedPredictor):
     """..."""
 
@@ -34,15 +39,27 @@ class Bridge(Callback, BatchedPredictor):
         self.executor = executor
         self.device = device
         self.epoch = None
+        self.epoch_start = None
 
     def set_model(self, model: Model) -> None:
         model = deepcopy(model).eval().to(self.device)
         self.batched_predictor = ModelBatchedPredictor(model, self.executor, self.device)
 
+    def on_train_epoch_start(self, trainer: L.Trainer, lightning_model: L.LightningModule) -> None:
+        self.epoch_start = time.perf_counter()
+
     def on_train_epoch_end(self, trainer: L.Trainer, lightning_model: L.LightningModule) -> None:
         # TODO should we log some episode-related metrics (e.g. number of turns, win rate, ...)?
         self.set_model(lightning_model.model)
         self.epoch = trainer.current_epoch
+        # TODO should maybe make sure the new epoch will start with at least one new episode?
+
+        # Naive delay, useful when training set is too small
+        epoch_end = time.perf_counter()
+        actual_duration = epoch_end - self.epoch_start
+        min_duration = 30.0
+        if actual_duration < min_duration:
+            time.sleep(min_duration - actual_duration)
 
     async def predict_many(self, states: list[State]) -> list[Prediction]:
         return await self.batched_predictor.predict_many(states)
@@ -88,15 +105,15 @@ async def main():
                 dirpath=os.path.join(sessions_folder, name, "checkpoints"),
                 filename="{epoch}",
                 save_top_k=-1,
-                every_n_epochs=50,
+                every_n_epochs=20,
             ),
             bridge,
         ],
     )
-
+    # TODO saturate at 300 episodes (epoch 45, i.e. after 20 minutes)
     buffer = Buffer(
         batch_size=64,
-        max_turns=64 * 500,
+        max_turns=64 * 100,  # TODO adjust this!
         path=os.path.join(sessions_folder, name, "episode.jl"),
         executor=executor,
     )
@@ -112,6 +129,7 @@ async def main():
             metadata = {
                 "model_epoch": -1,
                 "trainer_epoch": 0,
+                "timestamp": now().isoformat(),
             }
             await buffer.add_episode(episode, metadata)
 
@@ -125,6 +143,7 @@ async def main():
             metadata = {
                 "model_epoch": bridge.epoch,
                 "trainer_epoch": trainer.current_epoch,
+                "timestamp": now().isoformat(),
             }
             await buffer.add_episode(episode, metadata)
         # TODO should print on error, as `gather` seems to postpone the failure

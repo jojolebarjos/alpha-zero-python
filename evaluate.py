@@ -28,7 +28,7 @@ lightning_model = LitModel.load_from_checkpoint(path, config=config).to(device)
 batched_predictor = ModelBatchedPredictor(lightning_model.model, executor, device)
 predictor = BufferedPredictor(batched_predictor)
 
-predictor = SearchPredictor(predictor, num_steps=1000, c_puct=1.0)
+# predictor = SearchPredictor(predictor, num_steps=1000, c_puct=1.0)
 
 
 class AgentApp(App):
@@ -37,7 +37,6 @@ class AgentApp(App):
     def compose(self) -> ComposeResult:
         board = ConnectBoard()
         board.state = config.sample_initial_state()
-        board.disabled = board.state.player != 0
         yield board
         yield Pretty(None, id="policy")
 
@@ -48,22 +47,12 @@ class AgentApp(App):
         await self._play(event.board, event.action.sample_next_state())
 
     async def _play(self, board: ConnectBoard, state: State) -> None:
-        if state.player == 0:
-            board.state = state
-        else:
-            board.state = state
-            board.disabled = True
-            _ = asyncio.create_task(self._play_agent(board, state))
-
-    async def _play_agent(self, board: ConnectBoard, state: State) -> None:
-        while not state.has_ended and state.player != 0:
-            prediction = await predictor.predict(state)
-            self.get_child_by_id("policy").update(prediction)
-            action = sample_action(prediction.policy, temperature=0.1)
-            state = action.sample_next_state()
         board.state = state
-        board.disabled = False
-        board.focus()
+        if state.has_ended:
+            prediction = None
+        else:
+            prediction = await predictor.predict(state)
+        self.get_child_by_id("policy").update(prediction)
 
 
 with executor:
