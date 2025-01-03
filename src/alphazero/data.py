@@ -5,6 +5,7 @@ import numpy as np
 
 
 # TODO protocol? how to properly introduce generics to tie states and actions?
+Config: TypeAlias = Any
 State: TypeAlias = Any
 Action: TypeAlias = Any
 
@@ -25,22 +26,22 @@ class Turn:
         policy = []
         for action, probability in self.policy.items():
             data = action.to_json()
-            del data["state"]
             policy.append([data, probability])
         return {
-            "state": self.state.to_json(),  # TODO delete config key?
+            "state": self.state.to_json(),
             "policy": policy,
             "value": self.value.tolist(),
         }
 
     @classmethod
-    def from_dict(cls, data, state_cls, action_cls) -> Self:
-        state = state_cls.from_json(data["state"])
+    def from_dict(cls, data, config) -> Self:
+        state = config.State.from_json(data["state"], config)
         policy = {}
         for action_data, probability in data["policy"]:
-            action_data = {"state": data["state"], **action_data}
-            # TODO `from_json` should probably reuse an existing state!
-            action = action_cls.from_json(action_data)
+            action = state.Action.from_json(action_data, state)
             policy[action] = probability
         value = np.array(data["value"])
         return cls(state, policy, value)
+
+
+# TODO episode class

@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 import lightning as L
 
 # TODO this class should be game independent
-from simulator.game.connect import Action, State  # pyright: ignore[reportMissingModuleSource]
+from simulator.game.connect import Action, State
 
 from alphazero.data import Turn
 from alphazero.model.connect import TurnDataset

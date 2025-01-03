@@ -10,7 +10,7 @@ from torch.utils.data import Dataset
 
 import lightning as L
 
-from simulator.game.connect import Config, State  # pyright: ignore[reportMissingModuleSource]
+from simulator.game.connect import Config, State
 
 from ..data import Prediction, Turn
 from ..predictor import BatchedPredictor

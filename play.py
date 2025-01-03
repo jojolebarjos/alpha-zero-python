@@ -6,7 +6,7 @@ from textual.widgets import Pretty
 
 import torch
 
-from simulator.game.connect import Config, State  # pyright: ignore[reportMissingModuleSource]
+from simulator.game.connect import Config, State
 from simulator.textual.connect import ConnectBoard
 
 from alphazero.model.connect import LitModel, ModelBatchedPredictor

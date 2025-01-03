@@ -14,7 +14,7 @@ import lightning as L
 from lightning.pytorch.callbacks import Callback, ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
 
-from simulator.game.connect import Config, State  # pyright: ignore[reportMissingModuleSource]
+from simulator.game.connect import Config, State
 
 from alphazero.data import Prediction
 from alphazero.buffer import Buffer

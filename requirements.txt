@@ -2,7 +2,7 @@ lightning==2.4.0
 numpy==1.26.4
 pre-commit==4.0.1
 ruff==0.8.4
-# simulator==0.0.4
+# simulator==0.0.5
 tensorboard==2.18.0
 torch==2.5.1
 tqdm==4.67.1
