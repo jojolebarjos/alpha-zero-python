@@ -57,6 +57,6 @@ if __name__ == "__main__":
     from simulator.textual.connect import ConnectBoard
     from alphazero.worker.remote.dummy import DummyRemote
 
-    remote = DummyRemote()
-    app = WorkerApp(remote, ConnectBoard, batch_size=8)
-    app.run()
+    with DummyRemote() as remote:
+        app = WorkerApp(remote, ConnectBoard, batch_size=8)
+        app.run()

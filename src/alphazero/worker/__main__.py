@@ -4,8 +4,7 @@ from alphazero.worker.sampler import Sampler
 
 # TODO load this from CLI argument, somehow
 
-remote = DummyRemote()
-
-sampler = Sampler(remote, batch_size=8)
-while True:
-    sampler.step()
+with DummyRemote() as remote:
+    sampler = Sampler(remote, batch_size=8)
+    while True:
+        sampler.step()

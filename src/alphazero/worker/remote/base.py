@@ -1,3 +1,5 @@
+from typing import Self
+
 from alphazero.data import Config, Episode
 from alphazero.predictor import Predictor
 
@@ -13,6 +15,12 @@ class Remote:
 
     config: Config
     predictor: Predictor
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        pass
 
     def add_episode(self, episode: Episode) -> None:
         raise NotImplementedError
