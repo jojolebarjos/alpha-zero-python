@@ -1,6 +1,7 @@
 import numpy as np
 
 from alphazero.data import Episode
+from alphazero.searcher import Searcher
 from alphazero.worker.remote.dummy import DummyRemote
 
 
@@ -10,7 +11,6 @@ remote = DummyRemote()
 
 config = remote.config
 batch_size = 8
-temperature = 1.0
 
 
 # TODO move this code into proper helper functions/classes
@@ -19,15 +19,16 @@ episodes = [Episode([config.sample_initial_state()], [], []) for _ in range(batc
 
 while True:
     predictor = remote.predictor
+    # TODO should probably reuse part of the subtree
+    predictor = Searcher(predictor, num_steps=400, c_puct=4.0)
 
     states = [episode.states[-1] for episode in episodes]
     predictions = predictor.predict_many(states)
 
     for i in range(batch_size):
         prediction = predictions[i]
-        e = np.exp(prediction.policy_logits / temperature)
-        p = e / e.sum()
-        action = np.random.choice(prediction.actions, p=p)
+        # TODO temperature?
+        action = np.random.choice(prediction.actions, p=prediction.policy)
 
         state = action.sample_next_state()
 

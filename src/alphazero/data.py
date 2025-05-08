@@ -19,9 +19,9 @@ class Prediction:
 
     """
 
-    actions: list[Action]  # TODO should this be actually kept here?
-    policy_logits: np.ndarray
-    value_logits: np.ndarray
+    actions: list[Action]
+    policy: np.ndarray
+    value: np.ndarray
 
 
 @dataclass
@@ -42,7 +42,7 @@ class Episode:
 class Sample:
     """Training sample.
 
-    The policy head is trained to predict the MCTS posterior (i.e., the normalized
+    The policy head is trained to predict the policy posterior (i.e., the normalized
     visit-count vector after the search). In other words, we train using the improved
     policy.
 
