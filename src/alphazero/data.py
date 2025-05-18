@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import Any, Self, TypeAlias
 
@@ -75,6 +77,15 @@ class Episode:
         for prediction, action in zip(predictions, actions):
             assert 0 <= action < len(prediction.actions)
         return cls(states, predictions, actions)
+
+    def to_samples(self) -> list[Sample]:
+        samples = []
+        assert self.states[-1].has_ended
+        reward = self.states[-1].reward
+        for state, prediction in zip(self.states, self.predictions):
+            sample = Sample(state, prediction.policy, reward)
+            samples.append(sample)
+        return samples
 
 
 @dataclass

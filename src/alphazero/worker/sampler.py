@@ -25,14 +25,16 @@ class Sampler:
 
         for i in range(self.batch_size):
             prediction = predictions[i]
+
             # TODO temperature?
-            action = np.random.choice(prediction.actions, p=prediction.policy)
+            action_index = np.random.choice(len(prediction.actions), p=prediction.policy)
+            action = prediction.actions[action_index]
 
             state = action.sample_next_state()
 
             episode = self.episodes[i]
             episode.predictions.append(prediction)
-            episode.actions.append(action)
+            episode.actions.append(action_index)
             episode.states.append(state)
 
             if state.has_ended:
