@@ -51,12 +51,3 @@ class WorkerApp(App):
             widget = self.get_widget_by_id(f"state-{i}")
             state = self.sampler.episodes[i].states[-1]
             widget.state = state
-
-
-if __name__ == "__main__":
-    from simulator.textual.connect import ConnectBoard
-    from alphazero.worker.remote.dummy import DummyRemote
-
-    with DummyRemote() as remote:
-        app = WorkerApp(remote, ConnectBoard, batch_size=8)
-        app.run()

@@ -34,6 +34,7 @@ class PlayApp(App):
     async def on_connect_board_selected(self, event: ConnectBoard.Selected) -> None:
         state = event.action.sample_next_state()
         event.board.state = state
+        self.get_child_by_id("policy").update("...")
         self._play(event.board, state)
 
     @work(thread=True)
