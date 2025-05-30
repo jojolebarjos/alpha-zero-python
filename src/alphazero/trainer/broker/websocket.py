@@ -17,6 +17,8 @@ from .base import Broker
 class WebsocketBroker(Broker):
     """..."""
 
+    # TODO how do we bring the episodes/samples out of here? does the broker know/own the buffer? Do we have a callback?
+
     def __init__(
         self,
         config: Config,
@@ -39,10 +41,13 @@ class WebsocketBroker(Broker):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:
+        assert self._server is not None
         self._server.shutdown()
+        assert self._thread is not None
         self._thread.join()
 
     def _run(self) -> None:
+        assert self._server is not None
         self._server.serve_forever()
 
     def _handle(self, connection: ServerConnection) -> None:
@@ -62,6 +67,7 @@ class WebsocketBroker(Broker):
         connection.send(json.dumps(payload))
 
         while True:
+            # TODO report transfer times?
             # TODO should also send new models here
             # TODO handle incoming episodes
             payload = json.loads(connection.recv())

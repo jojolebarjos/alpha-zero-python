@@ -51,6 +51,7 @@ class Episode:
 
     """
 
+    # TODO should we keep the config as well?
     states: list[State]
     predictions: list[Prediction]
     actions: list[int]

@@ -74,8 +74,6 @@ class Buffer:
         with self._lock:
             return list(self._samples)
 
-    # TODO thread-safe iterator, which re-shuffle at each epoch
-
 
 def _count_line_breaks(path: str, chunk_size: int = 32000) -> int:
     count = 0
