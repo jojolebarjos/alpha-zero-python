@@ -42,6 +42,7 @@ def train(
         max_epochs=-1,
         reload_dataloaders_every_n_epochs=1,
         log_every_n_steps=20,
+        # TODO enable_progress_bar=False,
         callbacks=[
             ModelCheckpoint(
                 dirpath=os.path.join(session_folder, "checkpoints"),

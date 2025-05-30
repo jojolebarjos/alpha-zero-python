@@ -1,16 +1,15 @@
-import io
+from base64 import b64encode
 import json
 from threading import Thread
 from typing import Self
 
 from websockets.sync.server import Server, ServerConnection, serve
 
-import torch
-
 import lightning as L
 
 from alphazero.data import Config, Episode
 from alphazero.trainer.buffer import Buffer
+from alphazero.utility import to_torchscript
 
 from .base import Broker
 
@@ -72,7 +71,7 @@ class WebsocketBroker(Broker):
                 payload = {
                     "type": "model",
                     # TODO class/name
-                    "data": content,
+                    "data": b64encode(content).decode("ascii"),
                 }
                 connection.send(json.dumps(payload))
 
@@ -88,11 +87,3 @@ class WebsocketBroker(Broker):
 
     def set_model(self, model: L.LightningModule) -> None:
         self.model = model
-
-
-def to_torchscript(lightning_model: L.LightningModule) -> bytes:
-    script = lightning_model.to_torchscript()
-    file = io.BytesIO()
-    torch.jit.save(script, file)
-    content = file.getvalue()
-    return content
