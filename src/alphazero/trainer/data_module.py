@@ -1,3 +1,5 @@
+import time
+
 from torch.utils.data import DataLoader
 
 import lightning as L
@@ -9,13 +11,20 @@ from .dataset import SampleDataset
 class BufferDataModule(L.LightningDataModule):
     """..."""
 
-    def __init__(self, buffer: Buffer, transform, batch_size: int) -> None:
+    def __init__(self, buffer: Buffer, transform, batch_size: int, novelty: int = 5) -> None:
         super().__init__()
         self.buffer = buffer
         self.transform = transform
         self.batch_size = batch_size
+        self.novelty = novelty
+        self.last_num_episodes = None
 
     def train_dataloader(self) -> DataLoader:
+        if self.last_num_episodes is not None:
+            while self.buffer.num_episodes < self.last_num_episodes + self.novelty:
+                time.sleep(1.0)
+        self.last_num_episodes = self.buffer.num_episodes
+
         samples = self.buffer.get_samples()
         assert len(samples) > 0
         dataset = SampleDataset(samples, self.transform)

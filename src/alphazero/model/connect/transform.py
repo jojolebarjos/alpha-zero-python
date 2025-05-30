@@ -34,6 +34,9 @@ def state_to_tensor(state: State) -> torch.Tensor:
 
 def transform(sample: Sample) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     x = state_to_tensor(sample.state)
-    y_policy = torch.from_numpy(sample.policy)
+    y_policy = np.zeros(sample.state.config.width, dtype=np.float32)
+    for action, probability in zip(sample.actions, sample.policy):
+        y_policy[action.column] = probability
+    y_policy = torch.from_numpy(y_policy)
     y_value = torch.tensor(sample.value[0])
     return x, y_policy, y_value

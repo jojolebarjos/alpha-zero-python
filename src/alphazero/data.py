@@ -84,7 +84,7 @@ class Episode:
         assert self.states[-1].has_ended
         reward = self.states[-1].reward
         for state, prediction in zip(self.states, self.predictions):
-            sample = Sample(state, prediction.policy, reward)
+            sample = Sample(state, prediction.actions, prediction.policy, reward)
             samples.append(sample)
         return samples
 
@@ -103,12 +103,14 @@ class Sample:
     """
 
     state: State
+    actions: list[Action]
     policy: np.ndarray
     value: np.ndarray
 
     def to_json(self) -> Any:
         return {
             "state": self.state.to_json(),
+            "actions": [action.to_json() for action in self.actions],
             "policy": self.policy.tolist(),
             "value": self.value.tolist(),
         }
@@ -116,8 +118,9 @@ class Sample:
     @classmethod
     def from_json(cls, payload: Any, config: Config) -> Self:
         state = config.State.from_json(payload["state"], config)
+        actions = [state.Action.from_json(action_payload, state) for action_payload in payload["actions"]]
         policy = np.array(payload["policy"], dtype=np.float32)
-        assert policy.shape == (len(state.actions),)
+        assert policy.shape == (len(actions),)
         value = np.array(payload["value"], dtype=np.float32)
         assert value.shape == (config.num_players,)
-        return cls(state, policy, value)
+        return cls(state, actions, policy, value)

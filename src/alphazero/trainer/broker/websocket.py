@@ -9,7 +9,8 @@ import torch
 
 import lightning as L
 
-from alphazero.data import Config
+from alphazero.data import Config, Episode
+from alphazero.trainer.buffer import Buffer
 
 from .base import Broker
 
@@ -23,12 +24,14 @@ class WebsocketBroker(Broker):
         self,
         config: Config,
         model: L.LightningModule,
+        buffer: Buffer,
         *,
         host: str | None = None,
         port: int | None = None,
     ) -> None:
         self.config = config
         self.model = model
+        self.buffer = buffer
         self.host = host
         self.port = port
         self._server: Server | None = None
@@ -58,23 +61,33 @@ class WebsocketBroker(Broker):
         }
         connection.send(json.dumps(payload))
 
-        content = to_torchscript(self.model)
-        payload = {
-            "type": "model",
-            # TODO class/name
-            "data": content,
-        }
-        connection.send(json.dumps(payload))
+        last_model = None
 
         while True:
             # TODO report transfer times?
-            # TODO should also send new models here
+
+            if last_model is not self.model:
+                last_model = self.model
+                content = to_torchscript(last_model)
+                payload = {
+                    "type": "model",
+                    # TODO class/name
+                    "data": content,
+                }
+                connection.send(json.dumps(payload))
+
             # TODO handle incoming episodes
             payload = json.loads(connection.recv())
-            ...
+
+            if payload["type"] == "episode":
+                episode = Episode.from_json(payload["data"], self.config)
+                self.buffer.add_episode(episode)
+                continue
+
+            raise KeyError(payload["type"])
 
     def set_model(self, model: L.LightningModule) -> None:
-        raise NotImplementedError
+        self.model = model
 
 
 def to_torchscript(lightning_model: L.LightningModule) -> bytes:
