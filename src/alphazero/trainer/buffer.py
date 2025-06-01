@@ -2,8 +2,12 @@ import json
 import os
 import random
 import threading
+from time import perf_counter_ns
+
+from loguru import logger
 
 from alphazero.data import Config, Episode, Sample
+from alphazero.utility import Tic, format_duration
 
 
 class Buffer:
@@ -26,33 +30,39 @@ class Buffer:
         self._episode_file = None
         if self.episode_path is not None:
             self.num_episodes = _count_line_breaks(self.episode_path)
+            logger.info(f"Episode history has {self.num_episodes} episodes")
             self._episode_file = open(self.episode_path, "a", encoding="ascii")
         self.load_buffer()
 
     def load_buffer(self) -> None:
         with self._lock:
             samples = []
+            tic = Tic()
             if self.buffer_path is not None and os.path.exists(self.buffer_path):
                 with open(self.buffer_path, "r", encoding="ascii") as file:
                     for line in file:
                         payload = json.loads(line)
                         sample = Sample.from_json(payload, self.config)
                         samples.append(sample)
+            logger.info(f"Buffer loaded from disk in {format_duration(tic.toc())}, {len(samples)} samples")
             self._samples = samples
             # TODO probably reset some state
 
     def save_buffer(self) -> None:
         with self._lock:
             if self.buffer_path is not None:
+                tic = Tic()
                 with open(self.buffer_path, "w", encoding="ascii") as file:
                     for sample in self._samples:
                         payload = sample.to_json()
                         line = json.dumps(payload)
                         file.write(line)
                         file.write("\n")
+                logger.info(f"Buffer saved to disk in {format_duration(tic.toc())}, {len(self._samples)} samples")
 
     def add_episode(self, episode: Episode) -> None:
         with self._lock:
+            # TODO log here as well
             if self._episode_file is not None:
                 payload = episode.to_json()
                 line = json.dumps(payload)

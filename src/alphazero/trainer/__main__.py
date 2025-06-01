@@ -4,6 +4,8 @@ import lightning as L
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
 
+from loguru import logger
+
 from alphazero.data import Config
 
 from .broker import Broker
@@ -23,8 +25,10 @@ def train(
 ):
     """..."""
 
+    logger.info(f"Session saved in {session_folder}")
+
     # Thin wrapper around the sample buffer
-    data_module = BufferDataModule(buffer, transform, batch_size=64)
+    data_module = BufferDataModule(buffer, transform, batch_size=64, novelty=5)
 
     # Tensorboard will be the main logging strategy for deep learning related metrics
     tensorboard_logger = TensorBoardLogger(
@@ -42,7 +46,7 @@ def train(
         max_epochs=-1,
         reload_dataloaders_every_n_epochs=1,
         log_every_n_steps=20,
-        # TODO enable_progress_bar=False,
+        enable_progress_bar=False,
         callbacks=[
             ModelCheckpoint(
                 dirpath=os.path.join(session_folder, "checkpoints"),
@@ -63,6 +67,9 @@ def train(
 
 
 def foo():
+    # TODO add click CLI
+    # TODO make the game/model arguments (i.e., need some form of registry)
+
     from simulator.game.connect import Config as ConnectConfig
 
     from alphazero.model.connect import ConnectModel, transform

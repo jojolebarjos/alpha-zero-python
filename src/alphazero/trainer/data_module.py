@@ -4,6 +4,8 @@ from torch.utils.data import DataLoader
 
 import lightning as L
 
+from loguru import logger
+
 from .buffer import Buffer
 from .dataset import SampleDataset
 
@@ -21,8 +23,10 @@ class BufferDataModule(L.LightningDataModule):
 
     def train_dataloader(self) -> DataLoader:
         if self.last_num_episodes is not None:
+            logger.info("Not enough novel episodes to proceed, waiting...")
             while self.buffer.num_episodes < self.last_num_episodes + self.novelty:
                 time.sleep(1.0)
+            logger.info("Ready to proceed with new epoch")
         self.last_num_episodes = self.buffer.num_episodes
 
         samples = self.buffer.get_samples()

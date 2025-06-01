@@ -7,6 +7,8 @@ from websockets.sync.server import Server, ServerConnection, serve
 
 import lightning as L
 
+from loguru import logger
+
 from alphazero.data import Config, Episode
 from alphazero.trainer.buffer import Buffer
 from alphazero.utility import to_torchscript
@@ -47,12 +49,14 @@ class WebsocketBroker(Broker):
         self._server.shutdown()
         assert self._thread is not None
         self._thread.join()
+        # TODO for some reason, the server does not quit if there are still active connections
 
     def _run(self) -> None:
         assert self._server is not None
         self._server.serve_forever()
 
     def _handle(self, connection: ServerConnection) -> None:
+        logger.info(f"New connection from {connection.remote_address}:")
         payload = {
             "type": "config",
             # TODO class/name
@@ -80,6 +84,7 @@ class WebsocketBroker(Broker):
 
             if payload["type"] == "episode":
                 episode = Episode.from_json(payload["data"], self.config)
+                logger.info(f"Got new episode from {connection.remote_address}")
                 self.buffer.add_episode(episode)
                 continue
 

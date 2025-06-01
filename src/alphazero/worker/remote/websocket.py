@@ -6,6 +6,8 @@ from typing import Self
 from websockets import ConnectionClosed
 from websockets.sync.client import connect, ClientConnection
 
+from loguru import logger
+
 from simulator.game.connect import Config
 
 from alphazero.data import Episode
@@ -28,8 +30,10 @@ class WebsocketRemote(Remote):
 
     def __enter__(self) -> Self:
         assert self._connection is None
+        logger.info("Connecting to {uri}...", uri=self.uri)
         self._connection = connect(self.uri)
         try:
+            logger.info("Connected! Waiting for configuration...")
             payload = json.loads(self._connection.recv())
             assert payload["type"] == "config"
             # TODO get config class from server
@@ -58,16 +62,16 @@ class WebsocketRemote(Remote):
 
                 if payload["type"] == "model":
                     model = from_torchscript(base64.b64decode(payload["data"]))
+                    # TODO how do we get this one? Probably the class is also shared by the trainer
                     # TODO make sure it is on the proper device
                     self.predictor = ConnectPredictor(model)
-                    print("Received new model")
+                    logger.info("Received new model")
                     continue
 
                 raise KeyError(payload["type"])
 
         except ConnectionClosed:
-            # TODO log this, at least, even if the worker can continue until `add_episode` fails?
-            pass
+            logger.warning("Websocket connection closed, unable to exchange messages with remote!")
 
     def add_episode(self, episode: Episode) -> None:
         assert self._connection is not None
