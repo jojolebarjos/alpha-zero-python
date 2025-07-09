@@ -2,7 +2,6 @@ import json
 import os
 import random
 import threading
-from time import perf_counter_ns
 
 from loguru import logger
 

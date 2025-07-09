@@ -16,6 +16,8 @@ class ConnectPredictor(Predictor):
         self.device = next(self.model.parameters()).device
 
     def predict_many(self, states: list[State]) -> list[Prediction]:
+        if not states:
+            return []
         x = [state_to_tensor(state) for state in states]
         x = torch.stack(x, dim=0)
         x = x.to(self.device)

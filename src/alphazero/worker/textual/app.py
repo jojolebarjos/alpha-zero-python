@@ -4,8 +4,6 @@ from textual.containers import Grid
 from textual.widget import Widget
 from textual.worker import get_current_worker
 
-from loguru import logger
-
 from alphazero.worker.remote import Remote
 from alphazero.worker.sampler import Sampler
 
