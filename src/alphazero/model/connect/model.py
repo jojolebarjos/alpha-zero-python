@@ -57,7 +57,7 @@ class ConnectModel(L.LightningModule):
         loss = policy_loss + value_loss
         self.log("train_policy_loss", policy_loss)
         self.log("train_value_loss", value_loss)
-        self.log("train_loss", loss)
+        self.log("train_loss", loss, on_epoch=True, prog_bar=True)
         return loss
 
     def configure_optimizers(self):

@@ -19,3 +19,9 @@ Try to play against a trained model:
 ```sh
 python -m alphazero.play --path sessions/foo --num-steps 100
 ```
+
+Train model:
+
+```sh
+python -m alphazero.trainer
+```
