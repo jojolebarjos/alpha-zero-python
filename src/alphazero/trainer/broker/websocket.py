@@ -10,10 +10,10 @@ import lightning as L
 from loguru import logger
 
 from alphazero.data import Config, Episode
-from alphazero.trainer.buffer import Buffer
 from alphazero.utility import to_torchscript
 
 from .base import Broker
+from .callback import Callback
 
 
 class WebsocketBroker(Broker):
@@ -25,14 +25,14 @@ class WebsocketBroker(Broker):
         self,
         config: Config,
         model: L.LightningModule,
-        buffer: Buffer,
+        callback: Callback,
         *,
         host: str | None = None,
         port: int | None = None,
     ) -> None:
         self.config = config
         self.model = model
-        self.buffer = buffer
+        self.callback = callback
         self.host = host
         self.port = port
         self._server: Server | None = None
@@ -53,42 +53,53 @@ class WebsocketBroker(Broker):
 
     def _run(self) -> None:
         assert self._server is not None
-        self._server.serve_forever()
+        self.callback.on_broker_start(self)
+        try:
+            self._server.serve_forever()
+        finally:
+            self.callback.on_broker_end(self)
 
     def _handle(self, connection: ServerConnection) -> None:
-        logger.info(f"New connection from {connection.remote_address}:")
-        payload = {
-            "type": "config",
-            # TODO class/name
-            "data": self.config.to_json(),
-        }
-        connection.send(json.dumps(payload))
+        worker_id = str(connection.remote_address)  # TODO better identifier
+        self.callback.on_worker_start(self, worker_id)
+        try:
+            payload = {
+                "type": "config",
+                # TODO class/name
+                "data": self.config.to_json(),
+            }
+            connection.send(json.dumps(payload))
 
-        last_model = None
+            last_model = None
 
-        while True:
-            # TODO report transfer times?
+            while True:
+                # TODO report transfer times?
 
-            if last_model is not self.model:
-                last_model = self.model
-                content = to_torchscript(last_model)
-                payload = {
-                    "type": "model",
-                    # TODO class/name
-                    "data": b64encode(content).decode("ascii"),
-                }
-                connection.send(json.dumps(payload))
+                if last_model is not self.model:
+                    last_model = self.model
+                    content = to_torchscript(last_model)
+                    payload = {
+                        "type": "model",
+                        # TODO class/name
+                        "data": b64encode(content).decode("ascii"),
+                    }
+                    connection.send(json.dumps(payload))
 
-            # TODO handle incoming episodes
-            payload = json.loads(connection.recv())
+                # TODO handle incoming episodes
+                payload = json.loads(connection.recv())
 
-            if payload["type"] == "episode":
-                episode = Episode.from_json(payload["data"], self.config)
-                logger.info(f"Got new episode from {connection.remote_address}")
-                self.buffer.add_episode(episode)
-                continue
+                if payload["type"] == "episode":
+                    episode = Episode.from_json(payload["data"], self.config)
+                    logger.info(f"Got new episode from {connection.remote_address}")
+                    self.callback.on_episode(self, worker_id, episode)
+                    continue
 
-            raise KeyError(payload["type"])
+                raise KeyError(payload["type"])
+
+        except BaseException as e:
+            logger.exception(e)
+
+        self.callback.on_worker_end(self, worker_id)
 
     def set_model(self, model: L.LightningModule) -> None:
         self.model = model
