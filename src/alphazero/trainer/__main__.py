@@ -15,13 +15,11 @@ from simulator.game.connect import Config as ConnectConfig
 
 from alphazero.model.connect import ConnectModel, transform
 
-from textual.worker import get_current_worker
-
-from .app import TrainerApp
 from .broker.websocket import WebsocketBroker
 from .buffer import Buffer
 from .callback import ModelUpdateCallback
 from .dataset import SampleDataset
+from .textual import BrokerAdapter, LightningAdapter, TrainerApp
 
 
 @click.command()
@@ -57,11 +55,12 @@ def run(host: str, port: int) -> None:
         max_length=50_000,
     )
 
-    # TODO sample_random_episodes(buffer, min_episodes=100)
-
     app = TrainerApp()
 
-    broker = WebsocketBroker(config, model, app.broker_callback, host=host, port=port)
+    broker_adapter = BrokerAdapter(app)
+    broker = WebsocketBroker(config, model, broker_adapter, host=host, port=port)
+
+    lightning_adapter = LightningAdapter(app)
 
     tensorboard_logger = TensorBoardLogger(
         save_dir=os.path.dirname(session_folder),
@@ -84,7 +83,7 @@ def run(host: str, port: int) -> None:
                 every_n_epochs=20,
             ),
             ModelUpdateCallback(broker),
-            app.lightning_callback,
+            lightning_adapter,
         ],
     )
 
@@ -98,10 +97,9 @@ def run(host: str, port: int) -> None:
             self.last_num_episodes = None
 
         def train_dataloader(self) -> DataLoader:
-            worker = get_current_worker()
-
+            assert self.trainer is not None
             if self.last_num_episodes is not None:
-                while self.buffer.num_episodes < self.last_num_episodes + self.novelty and not worker.is_cancelled:
+                while self.buffer.num_episodes < self.last_num_episodes + self.novelty and not self.trainer.should_stop:
                     time.sleep(0.1)
             self.last_num_episodes = self.buffer.num_episodes
 

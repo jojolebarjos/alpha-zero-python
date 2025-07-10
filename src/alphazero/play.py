@@ -88,6 +88,7 @@ def run(path: str | None, num_steps: int) -> None:
         config = Config(6, 7, 4)
         predictor = Random()
     else:
+        # TODO allow for path to be a URL; this would download the model?
         path = resolve_checkpoint_path(path)
         model_class = ConnectModel
         model = model_class.load_from_checkpoint(path)

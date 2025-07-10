@@ -53,10 +53,14 @@ class WebsocketBroker(Broker):
 
     def _run(self) -> None:
         assert self._server is not None
+        logger.info("Websocket server is starting...")
         self.callback.on_broker_start(self)
         try:
             self._server.serve_forever()
+        except Exception as e:
+            logger.exception(e)
         finally:
+            logger.info("Websocket server closed")
             self.callback.on_broker_end(self)
 
     def _handle(self, connection: ServerConnection) -> None:
@@ -85,7 +89,6 @@ class WebsocketBroker(Broker):
                     }
                     connection.send(json.dumps(payload))
 
-                # TODO handle incoming episodes
                 payload = json.loads(connection.recv())
 
                 if payload["type"] == "episode":
