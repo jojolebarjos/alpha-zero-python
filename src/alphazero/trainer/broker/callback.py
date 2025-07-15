@@ -12,7 +12,7 @@ class Callback:
     def on_broker_end(self, broker: Broker) -> None:
         pass
 
-    def on_worker_start(self, broker: Broker, worker_id: str) -> None:
+    def on_worker_start(self, broker: Broker, worker_id: str, worker_name: str) -> None:
         pass
 
     def on_worker_end(self, broker: Broker, worker_id: str) -> None:

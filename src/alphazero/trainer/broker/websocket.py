@@ -2,6 +2,7 @@ from base64 import b64encode
 import json
 from threading import Thread
 from typing import Self
+from uuid import uuid4
 
 from websockets.sync.server import Server, ServerConnection, serve
 
@@ -37,6 +38,7 @@ class WebsocketBroker(Broker):
         self.port = port
         self._server: Server | None = None
         self._thread: Thread | None = None
+        self._connections = set[ServerConnection]()
 
     def __enter__(self) -> Self:
         self._server = serve(self._handle, self.host, self.port)
@@ -46,10 +48,12 @@ class WebsocketBroker(Broker):
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:
         assert self._server is not None
+        logger.debug("Shutting down...")
         self._server.shutdown()
+        for connection in self._connections:
+            connection.close()
         assert self._thread is not None
         self._thread.join()
-        # TODO for some reason, the server does not quit if there are still active connections
 
     def _run(self) -> None:
         assert self._server is not None
@@ -64,8 +68,10 @@ class WebsocketBroker(Broker):
             self.callback.on_broker_end(self)
 
     def _handle(self, connection: ServerConnection) -> None:
-        worker_id = str(connection.remote_address)  # TODO better identifier
-        self.callback.on_worker_start(self, worker_id)
+        worker_id = uuid4().hex
+        worker_name = str(connection.remote_address)  # TODO better identifier
+        self.callback.on_worker_start(self, worker_id, worker_name)
+        self._connections.add(connection)
         try:
             payload = {
                 "type": "config",
@@ -102,6 +108,7 @@ class WebsocketBroker(Broker):
         except BaseException as e:
             logger.exception(e)
 
+        self._connections.remove(connection)
         self.callback.on_worker_end(self, worker_id)
 
     def set_model(self, model: L.LightningModule) -> None:

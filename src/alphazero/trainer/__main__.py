@@ -122,7 +122,7 @@ def run(host: str, port: int) -> None:
         novelty=5,
     )
 
-    def work() -> None:
+    def run() -> None:
         # TODO maybe should wait here?
         trainer.fit(
             model,
@@ -130,7 +130,7 @@ def run(host: str, port: int) -> None:
             # TODO ckpt_path=last_checkpoint_path,
         )
 
-    app.work = work
+    app.run_worker(run, start=False, thread=True)
 
     try:
         with broker:

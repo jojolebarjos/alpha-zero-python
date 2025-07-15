@@ -34,9 +34,7 @@ def run(uri: str | None, batch_size: int, num_steps: int, show: bool) -> None:
             app.run()
         else:
             sampler = Sampler(remote, batch_size=batch_size, num_steps=num_steps)
-            from tqdm import tqdm
-
-            for i in tqdm(range(10)):
+            while True:
                 sampler.step()
 
 

@@ -9,7 +9,7 @@ from textual.app import App
 from textual.message import Message
 
 
-class TrainEvent(Message):
+class TrainStep(Message):
     def __init__(self, epoch: int, num_training_batches: int | None, batch: int) -> None:
         super().__init__()
         self.epoch = epoch
@@ -38,4 +38,4 @@ class LightningAdapter(Callback):
         num_training_batches = None
         if trainer.num_training_batches != math.inf:
             num_training_batches = int(trainer.num_training_batches)
-        self.app.post_message(TrainEvent(trainer.current_epoch, num_training_batches, batch_idx))
+        self.app.post_message(TrainStep(trainer.current_epoch, num_training_batches, batch_idx))

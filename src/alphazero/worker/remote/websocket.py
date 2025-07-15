@@ -81,4 +81,3 @@ class WebsocketRemote(Remote):
             "data": episode.to_json(),
         }
         self._connection.send(json.dumps(payload))
-        print("Episode sent")
