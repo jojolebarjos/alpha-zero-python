@@ -1,11 +1,12 @@
 import os
-import time
 
 import click
 
-from loguru import logger
+from rich.console import Console
+from rich.logging import RichHandler
+from rich.progress import Progress
 
-from torch.utils.data import DataLoader
+from loguru import logger
 
 import lightning as L
 from lightning.pytorch.callbacks import ModelCheckpoint
@@ -13,29 +14,36 @@ from lightning.pytorch.loggers import TensorBoardLogger
 
 from simulator.game.connect import Config as ConnectConfig
 
+from alphazero.data import Episode
 from alphazero.model.connect import ConnectModel, transform
 
+from .broker import Broker, Callback as BrokerCallback
 from .broker.websocket import WebsocketBroker
 from .buffer import Buffer
-from .callback import ModelUpdateCallback
-from .dataset import SampleDataset
-from .textual import BrokerAdapter, LightningAdapter, TrainerApp
+from .callback import ModelUpdateCallback, RichProgressCallback
+from .data_module import BufferDataModule
 
 
 @click.command()
+@click.argument("folder")
 @click.option("-h", "--host", default="0.0.0.0", help="Websocket server host")
 @click.option("-p", "--port", default=8080, help="Websocket server port")
-def run(host: str, port: int) -> None:
+def run(folder: str, host: str, port: int) -> None:
     """..."""
 
-    # TODO folder from configuration
-    session_folder = "./sessions/foo/"
-    if not os.path.exists(session_folder):
-        os.makedirs(session_folder)
-    assert os.path.isdir(session_folder)
+    console = Console()
+
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+    assert os.path.isdir(folder)
 
     logger.remove()
-    logger.add(os.path.join(session_folder, "trainer.log"), level="DEBUG")
+    logger.add(
+        RichHandler(console=console, rich_tracebacks=True),
+        format=lambda _: "{message}",
+        backtrace=False,
+    )
+    logger.add(os.path.join(folder, "trainer.log"), level="DEBUG")
 
     # TODO make game and model configurable
 
@@ -50,94 +58,63 @@ def run(host: str, port: int) -> None:
 
     buffer = Buffer(
         config,
-        buffer_path=os.path.join(session_folder, "buffer.jsonl"),
-        episode_path=os.path.join(session_folder, "episodes.jsonl"),
+        buffer_path=os.path.join(folder, "buffer.jsonl"),
+        episode_path=os.path.join(folder, "episodes.jsonl"),
         max_length=50_000,
     )
 
-    app = TrainerApp()
+    with Progress(console=console) as progress:
+        buffer_task = progress.add_task("Buffer", completed=len(buffer), total=buffer.max_length)
 
-    broker_adapter = BrokerAdapter(app)
-    broker = WebsocketBroker(config, model, broker_adapter, host=host, port=port)
+        class BrokerAdapter(BrokerCallback):
+            def on_episode(self, broker: Broker, worker_id: str, episode: Episode) -> None:
+                buffer.add_episode(episode)
+                progress.update(buffer_task, completed=len(buffer))
 
-    lightning_adapter = LightningAdapter(app)
+        broker_adapter = BrokerAdapter()
+        broker = WebsocketBroker(config, model, broker_adapter, host=host, port=port)
 
-    tensorboard_logger = TensorBoardLogger(
-        save_dir=os.path.dirname(session_folder),
-        name=None,
-        version=os.path.basename(session_folder),
-    )
-
-    trainer = L.Trainer(
-        logger=tensorboard_logger,
-        max_epochs=-1,
-        reload_dataloaders_every_n_epochs=1,
-        log_every_n_steps=20,
-        enable_progress_bar=False,
-        enable_model_summary=False,
-        callbacks=[
-            ModelCheckpoint(
-                dirpath=os.path.join(session_folder, "checkpoints"),
-                filename="{epoch}",
-                save_top_k=-1,
-                every_n_epochs=20,
-            ),
-            ModelUpdateCallback(broker),
-            lightning_adapter,
-        ],
-    )
-
-    class BufferDataModule(L.LightningDataModule):
-        def __init__(self, buffer: Buffer, transform, batch_size: int, novelty: int = 5) -> None:
-            super().__init__()
-            self.buffer = buffer
-            self.transform = transform
-            self.batch_size = batch_size
-            self.novelty = novelty
-            self.last_num_episodes = None
-
-        def train_dataloader(self) -> DataLoader:
-            assert self.trainer is not None
-            if self.last_num_episodes is not None:
-                while self.buffer.num_episodes < self.last_num_episodes + self.novelty and not self.trainer.should_stop:
-                    time.sleep(0.1)
-            self.last_num_episodes = self.buffer.num_episodes
-
-            buffer.save_buffer()
-
-            samples = self.buffer.get_samples()
-            assert len(samples) > 0
-            dataset = SampleDataset(samples, self.transform)
-            return DataLoader(
-                dataset,
-                batch_size=self.batch_size,
-                shuffle=True,
-                pin_memory=True,
-            )
-
-    data_module = BufferDataModule(
-        buffer,
-        transform,
-        batch_size=64,
-        novelty=5,
-    )
-
-    def run() -> None:
-        # TODO maybe should wait here?
-        trainer.fit(
-            model,
-            datamodule=data_module,
-            # TODO ckpt_path=last_checkpoint_path,
+        tensorboard_logger = TensorBoardLogger(
+            save_dir=os.path.dirname(folder),
+            name=None,
+            version=os.path.basename(folder),
         )
 
-    app.run_worker(run, start=False, thread=True)
+        trainer = L.Trainer(
+            logger=tensorboard_logger,
+            max_epochs=-1,
+            reload_dataloaders_every_n_epochs=1,
+            log_every_n_steps=20,
+            enable_progress_bar=False,
+            enable_model_summary=False,
+            callbacks=[
+                ModelCheckpoint(
+                    dirpath=os.path.join(folder, "checkpoints"),
+                    filename="{epoch}",
+                    save_top_k=-1,
+                    every_n_epochs=20,
+                ),
+                ModelUpdateCallback(broker),
+                RichProgressCallback(progress),
+            ],
+        )
 
-    try:
-        with broker:
-            app.run()
-    finally:
-        trainer.should_stop = True
-        buffer.save_buffer()
+        data_module = BufferDataModule(
+            buffer,
+            transform,
+            batch_size=64,
+            novelty=5,
+        )
+
+        try:
+            with broker:
+                trainer.fit(
+                    model,
+                    datamodule=data_module,
+                    # TODO ckpt_path=last_checkpoint_path,
+                )
+        finally:
+            buffer.save_buffer()
 
 
 run()

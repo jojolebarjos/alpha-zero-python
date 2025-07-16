@@ -69,9 +69,12 @@ class WebsocketBroker(Broker):
 
     def _handle(self, connection: ServerConnection) -> None:
         worker_id = uuid4().hex
-        worker_name = str(connection.remote_address)  # TODO better identifier
+        host, port = connection.remote_address
+        worker_name = f"{host}:{port}"
+        logger.info(f"{worker_name} connected")
         self.callback.on_worker_start(self, worker_id, worker_name)
         self._connections.add(connection)
+
         try:
             payload = {
                 "type": "config",
@@ -99,7 +102,7 @@ class WebsocketBroker(Broker):
 
                 if payload["type"] == "episode":
                     episode = Episode.from_json(payload["data"], self.config)
-                    logger.info(f"Got new episode from {connection.remote_address}")
+                    logger.info(f"{worker_name} new episode")
                     self.callback.on_episode(self, worker_id, episode)
                     continue
 
@@ -108,6 +111,7 @@ class WebsocketBroker(Broker):
         except BaseException as e:
             logger.exception(e)
 
+        logger.info(f"{worker_name} disconnected")
         self._connections.remove(connection)
         self.callback.on_worker_end(self, worker_id)
 

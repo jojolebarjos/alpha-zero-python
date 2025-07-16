@@ -33,6 +33,10 @@ class Buffer:
             self._episode_file = open(self.episode_path, "a", encoding="ascii")
         self.load_buffer()
 
+    def __len__(self) -> int:
+        with self._lock:
+            return len(self._samples)
+
     def load_buffer(self) -> None:
         with self._lock:
             samples = []
@@ -43,7 +47,10 @@ class Buffer:
                         payload = json.loads(line)
                         sample = Sample.from_json(payload, self.config)
                         samples.append(sample)
-            logger.info(f"Buffer loaded from disk in {format_duration(tic.toc())}, {len(samples)} samples")
+            logger.info(
+                f"Buffer loaded from disk in {format_duration(tic.toc())}, "
+                f"{len(samples)} samples, {self.num_episodes} episodes"
+            )
             self._samples = samples
             # TODO probably reset some state
 
@@ -57,7 +64,10 @@ class Buffer:
                         line = json.dumps(payload)
                         file.write(line)
                         file.write("\n")
-                logger.info(f"Buffer saved to disk in {format_duration(tic.toc())}, {len(self._samples)} samples")
+                logger.info(
+                    f"Buffer saved to disk in {format_duration(tic.toc())}, "
+                    f"{len(self._samples)} samples, {self.num_episodes} episodes"
+                )
 
     def add_episode(self, episode: Episode) -> None:
         with self._lock:
