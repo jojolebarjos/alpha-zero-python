@@ -23,5 +23,11 @@ python -m alphazero.play --path sessions/foo --num-steps 100
 Train model:
 
 ```sh
-python -m alphazero.trainer
+python -m alphazero.trainer sessions/foo
+```
+
+Show training logs:
+
+```sh
+tensorboard --logdir sessions
 ```

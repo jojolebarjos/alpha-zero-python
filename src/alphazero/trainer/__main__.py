@@ -90,7 +90,7 @@ def run(folder: str, host: str, port: int) -> None:
             callbacks=[
                 ModelCheckpoint(
                     dirpath=os.path.join(folder, "checkpoints"),
-                    filename="{epoch}",
+                    save_weights_only=True,
                     save_top_k=-1,
                     every_n_epochs=20,
                 ),
@@ -106,15 +106,22 @@ def run(folder: str, host: str, port: int) -> None:
             novelty=5,
         )
 
+        checkpoint_path = os.path.join(folder, "latest.ckpt")
+        last_checkpoint_path = None
+        if os.path.exists(checkpoint_path):
+            last_checkpoint_path = checkpoint_path
+            logger.info("Resuming from previous checkpoint")
+
         try:
             with broker:
                 trainer.fit(
                     model,
                     datamodule=data_module,
-                    # TODO ckpt_path=last_checkpoint_path,
+                    ckpt_path=last_checkpoint_path,
                 )
         finally:
             buffer.save_buffer()
+            trainer.save_checkpoint(checkpoint_path)
 
 
 run()
