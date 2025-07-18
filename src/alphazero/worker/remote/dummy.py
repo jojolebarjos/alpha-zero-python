@@ -7,7 +7,7 @@ from .base import Remote
 
 
 class DummyRemote(Remote):
-    """..."""
+    """In-memory remote."""
 
     def __init__(self):
         self.config = Config(6, 7, 4)

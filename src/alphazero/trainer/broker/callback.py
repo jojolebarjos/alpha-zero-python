@@ -4,7 +4,7 @@ from .base import Broker
 
 
 class Callback:
-    """..."""
+    """Broker callback."""
 
     def on_broker_start(self, broker: Broker) -> None:
         pass

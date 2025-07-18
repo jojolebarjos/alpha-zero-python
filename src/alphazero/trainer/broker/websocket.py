@@ -20,9 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class WebsocketBroker(Broker):
-    """..."""
-
-    # TODO how do we bring the episodes/samples out of here? does the broker know/own the buffer? Do we have a callback?
+    """Websocket-based broker."""
 
     def __init__(
         self,

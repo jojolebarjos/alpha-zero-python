@@ -29,8 +29,6 @@ class Sampler:
         states = [episode.states[-1] for episode in self.episodes]
         predictions = predictor.predict_many(states)
 
-        # TODO logger here
-
         for i in range(self.batch_size):
             prediction = predictions[i]
 

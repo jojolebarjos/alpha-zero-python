@@ -12,7 +12,16 @@ logger = logging.getLogger(__name__)
 
 
 class Buffer:
-    """..."""
+    """Replay buffer.
+
+    This is a disk-backed collection of samples. Once full, older samples are
+    randomly replaced with new ones.
+
+    Episodes are also saved on disk, but not kept in memory.
+
+    This class is thread-safe.
+
+    """
 
     def __init__(
         self,

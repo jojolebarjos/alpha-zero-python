@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class WebsocketRemote(Remote):
-    """..."""
+    """Websocket-based remote."""
 
     def __init__(self, uri: str):
         self.uri = uri
@@ -77,7 +77,6 @@ class WebsocketRemote(Remote):
 
     def add_episode(self, episode: Episode) -> None:
         assert self._connection is not None
-        # TODO maybe move this to background, to avoid blocking for too long?
         payload = {
             "type": "episode",
             "data": episode.to_json(),

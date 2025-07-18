@@ -50,7 +50,7 @@ class PlayApp(App):
         if state.has_ended:
             prediction = None
         else:
-            [prediction] = self.predictor.predict_many([state])
+            prediction = self.predictor.predict(state)
         self.call_from_thread(self._update, board, state, prediction)
 
     async def _update(self, board: ConnectBoard, state: State, prediction: Prediction | None = None) -> None:

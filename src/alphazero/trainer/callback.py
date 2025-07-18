@@ -10,7 +10,7 @@ from .broker import Broker
 
 
 class ModelUpdateCallback(LightningCallback):
-    """..."""
+    """Notify broker of new model weights."""
 
     def __init__(self, broker: Broker) -> None:
         self.broker = broker
@@ -20,7 +20,7 @@ class ModelUpdateCallback(LightningCallback):
 
 
 class RichProgressCallback(LightningCallback):
-    """..."""
+    """Update training progress."""
 
     def __init__(self, progress: Progress):
         super().__init__()

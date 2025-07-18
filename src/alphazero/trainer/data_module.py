@@ -1,15 +1,32 @@
 import time
+from typing import Any, Callable
 
 from torch.utils.data import DataLoader
 
 import lightning as L
+
+from alphazero.data import Sample
 
 from .buffer import Buffer
 from .dataset import SampleDataset
 
 
 class BufferDataModule(L.LightningDataModule):
-    def __init__(self, buffer: Buffer, transform, batch_size: int, novelty: int = 5) -> None:
+    """Buffer-based data module.
+
+    Each time a data loader is re-created, the latest buffer content is used.
+    This operation waits until enough new samples have been added to the
+    buffer.
+
+    """
+
+    def __init__(
+        self,
+        buffer: Buffer,
+        transform: Callable[[Sample], Any],
+        batch_size: int,
+        novelty: int = 5,
+    ) -> None:
         super().__init__()
         self.buffer = buffer
         self.transform = transform

@@ -13,3 +13,9 @@ class Predictor:
         """
 
         raise NotImplementedError
+
+    def predict(self, state: State) -> Prediction:
+        """Perform a single prediction."""
+
+        [prediction] = self.predict_many([state])
+        return prediction
