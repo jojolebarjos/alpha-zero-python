@@ -1,5 +1,6 @@
 from base64 import b64encode
 import json
+import logging
 from threading import Thread
 from typing import Self
 from uuid import uuid4
@@ -8,13 +9,14 @@ from websockets.sync.server import Server, ServerConnection, serve
 
 import lightning as L
 
-from loguru import logger
-
 from alphazero.data import Config, Episode
 from alphazero.utility import to_torchscript
 
 from .base import Broker
 from .callback import Callback
+
+
+logger = logging.getLogger(__name__)
 
 
 class WebsocketBroker(Broker):

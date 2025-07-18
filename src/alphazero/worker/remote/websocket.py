@@ -1,12 +1,11 @@
 import base64
 import json
+import logging
 from threading import Thread
 from typing import Self
 
 from websockets import ConnectionClosed
 from websockets.sync.client import connect, ClientConnection
-
-from loguru import logger
 
 from simulator.game.connect import Config
 
@@ -16,6 +15,9 @@ from alphazero.random import Random
 from alphazero.utility import from_torchscript
 
 from .base import Remote
+
+
+logger = logging.getLogger(__name__)
 
 
 class WebsocketRemote(Remote):
@@ -30,7 +32,7 @@ class WebsocketRemote(Remote):
 
     def __enter__(self) -> Self:
         assert self._connection is None
-        logger.info("Connecting to {uri}...", uri=self.uri)
+        logger.info(f"Connecting to {self.uri}...")
         self._connection = connect(self.uri)
         try:
             logger.info("Connected! Waiting for configuration...")

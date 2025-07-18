@@ -1,10 +1,13 @@
-import numpy as np
+import logging
 
-from loguru import logger
+import numpy as np
 
 from alphazero.data import Episode
 from alphazero.searcher import Searcher
 from alphazero.worker.remote import Remote
+
+
+logger = logging.getLogger(__name__)
 
 
 class Sampler:

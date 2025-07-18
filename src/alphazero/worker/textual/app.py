@@ -7,8 +7,6 @@ from textual.worker import get_current_worker
 from alphazero.worker.remote import Remote
 from alphazero.worker.sampler import Sampler
 
-from .log import Log
-
 
 class WorkerApp(App):
     """Episode generator."""
@@ -42,7 +40,7 @@ class WorkerApp(App):
             for i in range(self.batch_size):
                 board = self.widget_class(id=f"state-{i}", disabled=True)
                 yield board
-        yield Log(id="log")
+        # yield Log(id="log")
 
     async def on_mount(self) -> None:
         self.do_episodes()

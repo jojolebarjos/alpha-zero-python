@@ -1,12 +1,10 @@
+import logging
 import os
 
 import click
 
 from rich.console import Console
-from rich.logging import RichHandler
 from rich.progress import Progress
-
-from loguru import logger
 
 import lightning as L
 from lightning.pytorch.callbacks import ModelCheckpoint
@@ -16,12 +14,16 @@ from simulator.game.connect import Config as ConnectConfig
 
 from alphazero.data import Episode
 from alphazero.model.connect import ConnectModel, transform
+from alphazero.utility import configure_logging
 
 from .broker import Broker, Callback as BrokerCallback
 from .broker.websocket import WebsocketBroker
 from .buffer import Buffer
 from .callback import ModelUpdateCallback, RichProgressCallback
 from .data_module import BufferDataModule
+
+
+logger = logging.getLogger(__name__)
 
 
 @click.command()
@@ -37,13 +39,7 @@ def run(folder: str, host: str, port: int) -> None:
         os.makedirs(folder)
     assert os.path.isdir(folder)
 
-    logger.remove()
-    logger.add(
-        RichHandler(console=console, rich_tracebacks=True),
-        format=lambda _: "{message}",
-        backtrace=False,
-    )
-    logger.add(os.path.join(folder, "trainer.log"), level="DEBUG")
+    configure_logging(console, os.path.join(folder, "trainer.log"))
 
     # TODO make game and model configurable
 

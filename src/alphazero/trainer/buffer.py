@@ -1,12 +1,14 @@
 import json
+import logging
 import os
 import random
 import threading
 
-from loguru import logger
-
 from alphazero.data import Config, Episode, Sample
 from alphazero.utility import Tic, format_duration
+
+
+logger = logging.getLogger(__name__)
 
 
 class Buffer:
