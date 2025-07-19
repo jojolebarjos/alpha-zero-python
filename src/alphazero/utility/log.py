@@ -6,7 +6,7 @@ from rich.console import Console
 from rich.logging import RichHandler
 
 
-def configure_logging(console: Console, path: str | None = None) -> None:
+def configure_logging(console: Console, path: str | None = None, level: int = logging.INFO) -> None:
     """..."""
 
     for logger in logging.root.manager.loggerDict.values():
@@ -16,7 +16,7 @@ def configure_logging(console: Console, path: str | None = None) -> None:
 
     logging.root.handlers.clear()
 
-    logging.root.setLevel(logging.DEBUG)
+    logging.root.setLevel(level)
 
     console_handler = RichHandler(
         console=console,

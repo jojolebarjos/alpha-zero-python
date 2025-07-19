@@ -14,6 +14,12 @@ Run with interactive game interface, to see generated games live:
 python -m alphazero.worker --uri ws://0.0.0.0:8080/ --batch-size 4 --show
 ```
 
+Run without without interface, for efficiency:
+
+```sh
+python -m alphazero.worker --uri ws://0.0.0.0:8080/ --batch-size 64
+```
+
 Try to play against a trained model:
 
 ```sh

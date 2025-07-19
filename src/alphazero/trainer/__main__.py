@@ -99,7 +99,7 @@ def run(folder: str, host: str, port: int) -> None:
             buffer,
             transform,
             batch_size=64,
-            novelty=5,
+            novelty=20,
         )
 
         checkpoint_path = os.path.join(folder, "latest.ckpt")

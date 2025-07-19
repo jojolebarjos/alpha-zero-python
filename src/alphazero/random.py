@@ -16,8 +16,8 @@ class Random(Predictor):
         for state in states:
             actions = state.actions
             action_count = len(actions)
-            policy = np.full(action_count, 1 / action_count)
-            value = np.zeros(state.config.num_players)
+            policy = np.full(action_count, 1 / action_count, dtype=np.float32)
+            value = np.zeros(state.config.num_players, dtype=np.float32)
             prediction = Prediction(actions, policy, value)
             predictions.append(prediction)
         return predictions

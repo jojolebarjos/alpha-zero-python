@@ -66,11 +66,11 @@ def resolve_checkpoint_path(path: str) -> str:
         entries = []
         for name in os.listdir(path):
             if name.endswith(".ckpt"):
-                match = re.fullmatch(r"epoch=(\d+)(?:-v(\d+))?\.ckpt", name)
+                match = re.fullmatch(r"epoch=(\d+)(?:-step=(\d+))?\.ckpt", name)
                 assert match is not None
                 epoch = int(match.group(1))
-                version = int(match.group(2) or 0)
-                entry = epoch, version, name
+                step = int(match.group(2) or 0)
+                entry = epoch, step, name
                 entries.append(entry)
         entries.sort()
         _, _, latest_name = entries[-1]

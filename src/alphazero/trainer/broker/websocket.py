@@ -1,4 +1,5 @@
 from base64 import b64encode
+from copy import deepcopy
 import json
 import logging
 from threading import Thread
@@ -89,6 +90,7 @@ class WebsocketBroker(Broker):
                 # TODO report transfer times?
 
                 if last_model is not self.model:
+                    logger.info(f"{worker_name} sending new model")
                     last_model = self.model
                     content = to_torchscript(last_model)
                     payload = {
@@ -116,4 +118,5 @@ class WebsocketBroker(Broker):
         self.callback.on_worker_end(self, worker_id)
 
     def set_model(self, model: L.LightningModule) -> None:
-        self.model = model
+        logging.info("new model set!")
+        self.model = deepcopy(model)
