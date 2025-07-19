@@ -98,7 +98,7 @@ def run(folder: str, host: str, port: int) -> None:
         data_module = BufferDataModule(
             buffer,
             transform,
-            batch_size=64,
+            batch_size=256,
             novelty=20,
         )
 

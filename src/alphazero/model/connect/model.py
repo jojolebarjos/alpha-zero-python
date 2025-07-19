@@ -51,14 +51,18 @@ class ConnectModel(L.LightningModule):
     def training_step(self, batch, batch_idx):
         x, y_policy, y_value = batch
         y_probability = y_value * 0.5 + 0.5
+
         policy_logits, value_logits = self.model(x)
+
         policy_loss = F.kl_div(F.log_softmax(policy_logits, dim=-1), y_policy, reduction="batchmean")
         value_loss = F.binary_cross_entropy_with_logits(value_logits, y_probability)
         # TODO weighted combination?
         loss = policy_loss + value_loss
+
         self.log("train_policy_loss", policy_loss)
         self.log("train_value_loss", value_loss)
         self.log("train_loss", loss, on_epoch=True, prog_bar=True)
+
         return loss
 
     def configure_optimizers(self):

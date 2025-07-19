@@ -1,6 +1,8 @@
 import time
 from typing import Any, Callable
 
+import numpy as np
+
 from torch.utils.data import DataLoader
 
 import lightning as L
@@ -45,6 +47,15 @@ class BufferDataModule(L.LightningDataModule):
 
         samples = self.buffer.get_samples()
         assert len(samples) > 0
+
+        tensorboard = self.trainer.logger.experiment  # type: ignore
+        tensorboard.add_histogram(
+            "policy_histogram",
+            np.concatenate([sample.policy for sample in samples]),
+            bins=64,
+            global_step=self.trainer.global_step,
+        )
+
         dataset = SampleDataset(samples, self.transform)
         return DataLoader(
             dataset,
