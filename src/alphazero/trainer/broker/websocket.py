@@ -118,5 +118,5 @@ class WebsocketBroker(Broker):
         self.callback.on_worker_end(self, worker_id)
 
     def set_model(self, model: L.LightningModule) -> None:
-        logging.info("new model set!")
+        logger.info("New model set!")
         self.model = deepcopy(model)

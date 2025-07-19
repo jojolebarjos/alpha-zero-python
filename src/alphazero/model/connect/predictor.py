@@ -24,14 +24,14 @@ class ConnectPredictor(Predictor):
         with torch.no_grad():
             policy_logits, value_logits = self.model(x)
             policy = torch.softmax(policy_logits, dim=-1)
-            value = torch.sigmoid(value_logits)
+            value = torch.sigmoid(value_logits) * 2.0 - 1.0
         policy = policy.cpu().numpy()
         value = value.cpu().numpy()
         predictions = []
         for i, state in enumerate(states):
             actions = state.actions
             policy_i = policy[i, [action.column for action in actions]]
-            value_i = np.array([value[i], 1.0 - value[i]])
+            value_i = np.array([value[i], -value[i]])
             prediction = Prediction(actions, policy_i, value_i)
             predictions.append(prediction)
         return predictions
