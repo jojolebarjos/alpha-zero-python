@@ -124,3 +124,10 @@ class Sample:
         value = np.array(payload["value"], dtype=np.float32)
         assert value.shape == (config.num_players,)
         return cls(state, actions, policy, value)
+
+
+@dataclass
+class Match:
+    players: list[str]
+    reward: np.ndarray
+    episode: Episode | None = None
