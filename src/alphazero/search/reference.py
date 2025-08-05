@@ -147,6 +147,10 @@ class Search:
             state_node.last_state_node, state_node = None, state_node.last_state_node
 
     @property
+    def state(self) -> State:
+        return self.selected_state_node.state
+
+    @property
     def prediction(self) -> Prediction:
         """Posterior distribution."""
 

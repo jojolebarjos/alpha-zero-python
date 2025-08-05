@@ -37,3 +37,9 @@ Show training logs:
 ```sh
 tensorboard --logdir sessions
 ```
+
+Build optimized MCGS:
+
+```sh
+C_INCLUDE_PATH=$(python -c 'import numpy; print(numpy.get_include())') cythonize -a -i src/alphazero/search/cython.pyx
+```

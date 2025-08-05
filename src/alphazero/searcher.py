@@ -20,7 +20,7 @@ class Searcher(Predictor):
         searches = [Search(state, self.c_puct) for state in states]
         for _ in range(self.num_steps):
             selected_searches = [search for search in searches if search.select()]
-            selected_states = [search.selected_state_node.state for search in selected_searches]
+            selected_states = [search.state for search in selected_searches]
             selected_predictions = self.predictor.predict_many(selected_states)
             for search, prediction in zip(selected_searches, selected_predictions):
                 search.feed(prediction)

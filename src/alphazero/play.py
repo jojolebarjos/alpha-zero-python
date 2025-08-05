@@ -92,6 +92,7 @@ def run(path: str | None, num_steps: int) -> None:
         path = resolve_checkpoint_path(path)
         model_class = ConnectModel
         model = model_class.load_from_checkpoint(path)
+        model.eval()
         config = Config(model.hparams["height"], model.hparams["width"], 4)
         predictor_class = ConnectPredictor
         predictor = predictor_class(model)

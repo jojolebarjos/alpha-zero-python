@@ -3,3 +3,7 @@
 *.pyc
 *.egg-info
 /sessions/
+build/
+*.c
+*.so
+*.html
